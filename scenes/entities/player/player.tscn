@@ -1,9 +1,9 @@
-[gd_scene format=3 uid="uid://dunqbppaopfy8"]
+[gd_scene format=3 uid="uid://b4fk5akvmvfrw"]
 
-[ext_resource type="Script" uid="uid://dymd04n3ajjyu" path="res://player.gd" id="1_4flbx"]
 [ext_resource type="Texture2D" uid="uid://l0jyjm5qm5l5" path="res://art/player_idle.png" id="2_onrkg"]
 [ext_resource type="Texture2D" uid="uid://c7kspe26xqoj2" path="res://art/player_jump.png" id="3_hqtel"]
 [ext_resource type="Texture2D" uid="uid://bgx15rjbg8etr" path="res://art/player_walk.png" id="3_i3pqv"]
+[ext_resource type="Script" uid="uid://bl67gt01hdxex" path="res://scenes/entities/player/player.gd" id="5_sweqy"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_eydnk"]
 size = Vector2(3, 4)
@@ -275,7 +275,7 @@ _data = {
 }
 
 [node name="Player" type="CharacterBody2D" unique_id=1556836824]
-script = ExtResource("1_4flbx")
+script = ExtResource("5_sweqy")
 metadata/_edit_group_ = true
 
 [node name="Pivot" type="Node2D" parent="." unique_id=808327015]
@@ -302,6 +302,14 @@ libraries/ = SubResource("AnimationLibrary_hqtel")
 offset = Vector2(6.72, -12.325)
 zoom = Vector2(5.54, 5.54)
 position_smoothing_speed = 15.0
+
+[node name="CoyoteTimer" type="Timer" parent="." unique_id=677307450]
+wait_time = 0.15
+one_shot = true
+
+[node name="JumpBufferTimer" type="Timer" parent="." unique_id=1835433055]
+wait_time = 0.15
+one_shot = true
 
 [connection signal="body_entered" from="Pivot/Hitbox" to="." method="_on_hitbox_body_entered"]
 [connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]

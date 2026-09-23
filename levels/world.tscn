@@ -1,17 +1,17 @@
-[gd_scene format=3 uid="uid://bft7ntopsgu5c"]
+[gd_scene format=3 uid="uid://c427r46mafxs5"]
 
-[ext_resource type="PackedScene" uid="uid://dunqbppaopfy8" path="res://player.tscn" id="1_fj7yv"]
-[ext_resource type="PackedScene" uid="uid://bge057qo40qp" path="res://enemy.tscn" id="2_tlwt5"]
+[ext_resource type="PackedScene" uid="uid://b4fk5akvmvfrw" path="res://scenes/entities/player/player.tscn" id="1_tsgde"]
+[ext_resource type="PackedScene" uid="uid://cmmg1ki3symaw" path="res://scenes/entities/enemy/enemy.tscn" id="2_pmfem"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_qfj04"]
 size = Vector2(1142, 40)
 
 [node name="World" type="Node2D" unique_id=1085564581]
 
-[node name="Player" parent="." unique_id=1556836824 instance=ExtResource("1_fj7yv")]
+[node name="Player" parent="." unique_id=1556836824 instance=ExtResource("1_tsgde")]
 position = Vector2(148, 264)
 
-[node name="Enemy" parent="." unique_id=321129586 instance=ExtResource("2_tlwt5")]
+[node name="Enemy" parent="." unique_id=321129586 instance=ExtResource("2_pmfem")]
 position = Vector2(290, 185)
 
 [node name="Podea" type="StaticBody2D" parent="." unique_id=858049992]
