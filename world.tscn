@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://bft7ntopsgu5c"]
+
+[ext_resource type="PackedScene" uid="uid://dunqbppaopfy8" path="res://player.tscn" id="1_fj7yv"]
+[ext_resource type="PackedScene" uid="uid://bge057qo40qp" path="res://enemy.tscn" id="2_tlwt5"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_qfj04"]
+size = Vector2(1142, 40)
+
+[node name="World" type="Node2D" unique_id=1085564581]
+
+[node name="Player" parent="." unique_id=1556836824 instance=ExtResource("1_fj7yv")]
+position = Vector2(148, 264)
+
+[node name="Enemy" parent="." unique_id=321129586 instance=ExtResource("2_tlwt5")]
+position = Vector2(290, 185)
+
+[node name="Podea" type="StaticBody2D" parent="." unique_id=858049992]
+
+[node name="ColorRect" type="ColorRect" parent="Podea" unique_id=653156348]
+offset_top = 295.0
+offset_right = 1142.0
+offset_bottom = 335.0
+color = Color(0, 0.85882354, 0, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Podea" unique_id=117181769]
+position = Vector2(571, 315)
+shape = SubResource("RectangleShape2D_qfj04")
