@@ -1,20 +1,28 @@
 extends CharacterBody2D
 
-enum State { IDLE, MOVE, ATTACK, HURT }
+enum State { IDLE, MOVE, ATTACK, HURT, BLOCK, DASH, FINISHER }
+
+@export var max_health: int = 5
+var current_health: int = 5
 
 var current_state = State.IDLE 
 var was_in_air: bool = false
 
 # --- SISTEM COMBO ---
 var combo_count: int = 0
-@export var combo_reset_time: float = 0.8 # Timpul în care poți continua combo-ul
+@export var combo_reset_time: float = 0.8 
 var combo_timer: SceneTreeTimer = null
 
+# --- VARIABILE VITEZĂ ---
 const SPEED = 200.0
+const BLOCK_SPEED = 90.0 
+const DASH_SPEED = 450.0 
 const JUMP_VELOCITY = -250.0 
 
-@export var max_health: int = 5
-var current_health: int = 5
+# --- VARIABILE NOI (DASH & PARRY) ---
+var can_air_dash: bool = true 
+var dash_direction: int = 1
+var block_active_time: float = 0.0 
 
 @onready var anim_player = $AnimationPlayer
 @onready var hitbox = $Pivot/Hitbox
@@ -26,35 +34,55 @@ func _ready() -> void:
 	current_health = max_health
 
 func _physics_process(delta: float) -> void:
-	# 1. Gravitație
-	if not is_on_floor():
-		velocity += get_gravity() * delta
-
-	# 2. Reținem dacă am părăsit solul în acest cadru pentru Coyote Time
 	var was_on_floor_last_frame = is_on_floor()
+
+	if is_on_floor():
+		can_air_dash = true
+
+	if not is_on_floor() and current_state != State.DASH and current_state != State.FINISHER:
+		velocity += get_gravity() * delta
 
 	match current_state:
 		State.IDLE, State.MOVE:
 			handle_movement()
 			handle_attack()
 			
+			if Input.is_action_just_pressed("block"):
+				current_state = State.BLOCK
+				block_active_time = 0.0 
+				
+			if Input.is_action_just_pressed("dash") and (is_on_floor() or can_air_dash):
+				execute_dash()
+
+		State.BLOCK:
+			block_active_time += delta 
+			handle_block()
+			
+			if Input.is_action_just_pressed("dash") and (is_on_floor() or can_air_dash):
+				execute_dash()
+
+		State.DASH:
+			velocity.y = 0 
+			velocity.x = dash_direction * DASH_SPEED
+
+		State.FINISHER:
+			velocity = Vector2.ZERO # Înghețat pe loc în timpul animației de execuție
+
 		State.ATTACK:
 			velocity.x = move_toward(velocity.x, 0, 800 * delta)
 
 		State.HURT:
-			# În timpul stării de HURT, jucătorul este împins de knockback și își revine lin
 			velocity.x = move_toward(velocity.x, 0, 500 * delta)
 
-	# Detectarea părăsirii solului pentru Coyote Time
 	if was_on_floor_last_frame and not is_on_floor() and velocity.y >= 0:
 		coyote_timer.start()
 
 	move_and_slide()
 
+# --- GESTIONARE MIȘCARE NORMALĂ ---
 func handle_movement() -> void:
 	var direction = Input.get_axis("ui_left", "ui_right")
 	
-	# --- GESTIONARE ANIMAȚII ȘI ATERIZARE ---
 	if is_on_floor():
 		if was_in_air:
 			anim_player.play("land")
@@ -71,14 +99,13 @@ func handle_movement() -> void:
 		was_in_air = true
 		if anim_player.current_animation != "jump":
 			anim_player.play("jump")
-			anim_player.pause()
-			
-			if velocity.y < 0:
-				anim_player.seek(0.0, true)
-			else:
-				anim_player.seek(0.1, true)
+			anim_player.pause() 
+		
+		if velocity.y < 0:
+			anim_player.seek(0.0, true)
+		else:
+			anim_player.seek(0.1, true)
 
-	# --- MIȘCARE ORIZONTALĂ & ORIENTARE ---
 	if direction != 0:
 		velocity.x = direction * SPEED
 		current_state = State.MOVE
@@ -87,7 +114,6 @@ func handle_movement() -> void:
 		velocity.x = move_toward(velocity.x, 0, SPEED)
 		current_state = State.IDLE
 
-	# --- SISTEMUL RAFINAT DE SĂRITURĂ ---
 	if Input.is_action_just_pressed("ui_up"):
 		jump_buffer_timer.start()
 
@@ -100,88 +126,147 @@ func handle_movement() -> void:
 	if Input.is_action_just_released("ui_up") and velocity.y < 0:
 		velocity.y *= 0.4
 
+# --- GESTIONARE BLOCK & MERS ÎN GARDĂ ---
+func handle_block() -> void:
+	if not Input.is_action_pressed("block"):
+		current_state = State.IDLE
+		return
+		
+	var direction = Input.get_axis("ui_left", "ui_right")
+	
+	if direction != 0:
+		velocity.x = direction * BLOCK_SPEED
+		pivot.scale.x = sign(direction)
+		
+		if anim_player.current_animation not in ["block_hurt", "finisher"]:
+			if anim_player.has_animation("block_walk"):
+				anim_player.play("block_walk")
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+		if anim_player.current_animation not in ["block_hurt", "finisher"]:
+			if anim_player.has_animation("block"):
+				anim_player.play("block")
 
+# --- EXECUȚIE DASH ---
+func execute_dash() -> void:
+	current_state = State.DASH
+	if not is_on_floor():
+		can_air_dash = false 
+		
+	var direction = Input.get_axis("ui_left", "ui_right")
+	if direction != 0:
+		dash_direction = sign(direction)
+		pivot.scale.x = dash_direction
+	else:
+		dash_direction = pivot.scale.x 
+		
+	if anim_player.has_animation("dash"):
+		anim_player.play("dash")
+
+# --- GESTIONARE SĂRITURĂ ȘI ATAC ---
 func execute_jump() -> void:
 	velocity.y = JUMP_VELOCITY
 	coyote_timer.stop()
 	jump_buffer_timer.stop()
 
-
 func handle_attack() -> void:
 	if Input.is_action_just_pressed("ui_accept"): 
 		current_state = State.ATTACK
-		
-		# Incrementăm contorul de lovituri
 		combo_count += 1
 		
 		if combo_count >= 3:
-			# Al 3-lea pumn este cel puternic!
 			anim_player.play("alternate_punch")
-			velocity.x += pivot.scale.x * 300.0 # Impuls mai mare pentru atacul greu
-			combo_count = 0 # Resetăm combo-ul după lovitura finală
+			velocity.x += pivot.scale.x * 300.0 
+			combo_count = 0
 		else:
-			# Primul și al doilea pumn sunt normale
 			anim_player.play("punch")
 			velocity.x += pivot.scale.x * 150.0
-			
-			# Resetăm timer-ul de combo (dacă nu apasă din nou în 0.8s, combo-ul se pierde)
 			start_combo_reset_timer()
-
 
 func start_combo_reset_timer() -> void:
 	combo_timer = get_tree().create_timer(combo_reset_time)
-	await combo_timer.timeout
-	# Dacă player-ul nu a atacat din nou în starea de ATTACK, resetăm la 0
+	await combo_timer.timeout 
 	if current_state != State.ATTACK:
 		combo_count = 0
 
+# --- SISTEMUL DE DAUNE (PERFECT PARRY & FINISHER) ---
+func take_damage(damage_amount: int, knockback_force: Vector2, attacker: Node2D = null) -> void:
+	if current_state == State.BLOCK:
+		if block_active_time <= 0.2:
+			# -> PERFECT PARRY & FINISHER
+			velocity = Vector2.ZERO 
+			current_state = State.FINISHER
+			
+			Engine.time_scale = 0.1
+			apply_color_flash(Color(2.0, 2.0, 1.0, 1))
+			await get_tree().create_timer(0.05, true, false, true).timeout
+			Engine.time_scale = 1.0
+			
+			if attacker:
+				var dir = sign(attacker.global_position.x - global_position.x)
+				if dir != 0:
+					pivot.scale.x = dir
+				
+				# Teleportare lângă inamic
+				global_position.x = attacker.global_position.x - (dir * 25)
+				
+				if attacker.has_method("get_executed"):
+					attacker.get_executed()
+			
+			if anim_player.has_animation("finisher"):
+				anim_player.play("finisher")
+				
+		else:
+			# -> BLOCK NORMAL
+			velocity = knockback_force * 0.5 
+			if anim_player.has_animation("block_hurt"):
+				anim_player.play("block_hurt")
+			apply_color_flash(Color(1.5, 1.5, 2.0, 1)) 
+	else:
+		# -> LOVITURĂ NORMALĂ
+		current_health -= damage_amount
+		current_state = State.HURT
+		velocity = knockback_force
+		combo_count = 0
+		if anim_player.has_animation("hurt"):
+			anim_player.play("hurt")
+		apply_color_flash(Color(5, 5, 5, 1)) 
 
-# --- PRIMIRE DAUNE & KNOCKBACK ---
-func take_damage(damage_amount: int, knockback_force: Vector2) -> void:
-	current_health -= damage_amount
-	current_state = State.HURT
-	velocity = knockback_force
-	combo_count = 0 # Anulăm orice combo dacă suntem loviți
-	
-	if anim_player.has_animation("hurt"):
-		anim_player.play("hurt")
-	
-	hit_flash()
-	
 	if current_health <= 0:
 		die()
 
+func apply_color_flash(color: Color) -> void:
+	modulate = color 
+	await get_tree().create_timer(0.08).timeout
+	modulate = Color(1, 1, 1, 1) 
+
 func die() -> void:
-	# Aici poți da reload la scenă sau juca o animație de moarte
 	get_tree().reload_current_scene()
 
-func hit_flash() -> void:
-	modulate = Color(5, 5, 5, 1)
-	await get_tree().create_timer(0.08).timeout
-	modulate = Color(1, 1, 1, 1)
-
-
 func _on_animation_player_animation_finished(anim_name: StringName) -> void:
-	if anim_name == "punch" or anim_name == "alternate_punch" or anim_name == "hurt":
-		current_state = State.IDLE
+	if anim_name in ["punch", "alternate_punch", "hurt", "dash", "block_hurt", "finisher"]:
+		if Input.is_action_pressed("block"):
+			current_state = State.BLOCK
+		else:
+			current_state = State.IDLE
 
-
-# Schimbat în area_entered pentru a detecta corect Hurtbox-ul inamicului
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	var target = area.owner if area.owner else area.get_parent()
 	
 	if target and target.has_method("take_damage"):
 		var knockback_dir = pivot.scale.x
 		
-		# Dacă atacul curent este cel greu, dăm daune și knockback dublu!
-		var damage = 2 if anim_player.current_animation == "alternate_punch" else 1
-		var force_x = 600.0 if anim_player.current_animation == "alternate_punch" else 300.0
-		
-		var knockback_force = Vector2(knockback_dir * force_x, -150.0)
-		
-		target.take_damage(damage, knockback_force)
+		if current_state == State.DASH:
+			var dash_knockback = Vector2(knockback_dir * 150.0, -50.0)
+			# Transmitem 'self' ca jucătorul să fie identificat (deși la inamic nu îi pasă cine l-a lovit încă)
+			target.take_damage(0, dash_knockback)
+		else:
+			var damage = 2 if anim_player.current_animation == "alternate_punch" else 1
+			var force_x = 450.0 if anim_player.current_animation == "alternate_punch" else 300.0
+			var knockback_force = Vector2(knockback_dir * force_x, -150.0)
+			
+			target.take_damage(damage, knockback_force)
 
-		# Hit-Stop
-		Engine.time_scale = 0.1
-		await get_tree().create_timer(0.03, true, false, true).timeout
-		Engine.time_scale = 1.0
+			Engine.time_scale = 0.1
+			await get_tree().create_timer(0.03, true, false, true).timeout
+			Engine.time_scale = 1.0
