@@ -4,24 +4,26 @@
 [ext_resource type="PackedScene" uid="uid://cmmg1ki3symaw" path="res://scenes/entities/enemy/enemy.tscn" id="2_pmfem"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_qfj04"]
-size = Vector2(1142, 40)
+size = Vector2(1614, 40)
 
 [node name="World" type="Node2D" unique_id=1085564581]
 
 [node name="Player" parent="." unique_id=1556836824 instance=ExtResource("1_tsgde")]
-position = Vector2(148, 264)
+position = Vector2(150, 264)
 
 [node name="Enemy" parent="." unique_id=321129586 instance=ExtResource("2_pmfem")]
-position = Vector2(290, 185)
+position = Vector2(327, 264)
 
 [node name="Podea" type="StaticBody2D" parent="." unique_id=858049992]
+collision_mask = 0
 
 [node name="ColorRect" type="ColorRect" parent="Podea" unique_id=653156348]
+offset_left = -473.0
 offset_top = 295.0
 offset_right = 1142.0
 offset_bottom = 335.0
 color = Color(0, 0.85882354, 0, 1)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Podea" unique_id=117181769]
-position = Vector2(571, 315)
+position = Vector2(335, 315)
 shape = SubResource("RectangleShape2D_qfj04")
