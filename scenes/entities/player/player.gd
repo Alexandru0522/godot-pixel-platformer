@@ -23,7 +23,9 @@ const JUMP_VELOCITY = -250.0
 var can_air_dash: bool = true 
 var dash_direction: int = 1
 var block_active_time: float = 0.0 
+var trail_timer: float = 0.0
 
+@onready var sprite = $Pivot/Sprite2D
 @onready var anim_player = $AnimationPlayer
 @onready var hitbox = $Pivot/Hitbox
 @onready var pivot = $Pivot
@@ -64,6 +66,10 @@ func _physics_process(delta: float) -> void:
 		State.DASH:
 			velocity.y = 0 
 			velocity.x = dash_direction * DASH_SPEED
+			trail_timer += delta
+			if trail_timer > 0.05: # Creează o fantomă la fiecare 0.05 secunde
+				spawn_dash_trail()
+				trail_timer = 0.0
 
 		State.FINISHER:
 			velocity = Vector2.ZERO # Înghețat pe loc în timpul animației de execuție
@@ -240,6 +246,29 @@ func apply_color_flash(color: Color) -> void:
 	await get_tree().create_timer(0.08).timeout
 	modulate = Color(1, 1, 1, 1) 
 
+func spawn_dash_trail() -> void:
+	# 1. Creăm un Sprite nou (clona) direct din cod
+	var trail = Sprite2D.new()
+	trail.texture = sprite.texture
+	trail.hframes = sprite.hframes
+	trail.vframes = sprite.vframes
+	trail.frame = sprite.frame
+	
+	# 2. Îi dăm poziția și orientarea (stânga/dreapta) exactă a jucătorului
+	trail.global_position = global_position
+	trail.scale.x = pivot.scale.x 
+	
+	# Îi dăm și o culoare ușor diferită (opțional - aici un albăstrui transparent)
+	trail.modulate = Color(0.5, 0.5, 2.0, 0.8) 
+	
+	# 3. Adăugăm clona în scena principală (ca să nu se miște o dată cu tine)
+	get_tree().current_scene.add_child(trail)
+	
+	# 4. Folosim un Tween (Animație din cod) ca să îi scădem transparența la 0 și apoi să îl ștergem
+	var tween = get_tree().create_tween()
+	tween.tween_property(trail, "modulate:a", 0.0, 0.3) # Se evaporă în 0.3 secunde
+	tween.tween_callback(trail.queue_free) # Se șterge din memorie
+
 func die() -> void:
 	get_tree().reload_current_scene()
 
@@ -262,8 +291,8 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 			target.take_damage(0, dash_knockback)
 		else:
 			var damage = 2 if anim_player.current_animation == "alternate_punch" else 1
-			var force_x = 450.0 if anim_player.current_animation == "alternate_punch" else 300.0
-			var knockback_force = Vector2(knockback_dir * force_x, -150.0)
+			var force_x = 250.0 if anim_player.current_animation == "alternate_punch" else 150.0
+			var knockback_force = Vector2(knockback_dir * force_x, -50.0)
 			
 			target.take_damage(damage, knockback_force)
 
